@@ -1,0 +1,6 @@
+mixin slice(model, sliceData)
+  | !{parseSlice(model, sliceData)}
+
+mixin slices(model, data)
+  each sliceData in data
+    +slice(model, sliceData)

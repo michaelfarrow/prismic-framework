@@ -1,0 +1,149 @@
+box:
+  id: node
+  tag: 6.9.5
+  ports:
+    - '80'
+    - '3000'
+    - '3001'
+
+dev:
+  steps:
+    - script:
+        name: check local environment
+        code: |
+          [[ -f ENVIRONMENT_LOCAL || "$(cat ENVIRONMENT_LOCAL.template | xargs)" == "" ]] || ( echo "No ENVIRONMENT_LOCAL present, please create one based on ENVIRONMENT_LOCAL.template" && exit 1 )
+        cwd: $WERCKER_ROOT
+    - npm-install:
+        name: install node dependencies
+        options: --no-optional
+    - script:
+        name: adding tools
+        code: |
+          ln -s "$WERCKER_ROOT/tools/log" /usr/bin/log
+          ln -s "$WERCKER_ROOT/tools/reload" /usr/bin/reload
+          ln -s "$WERCKER_ROOT/tools/reload" /usr/bin/restart
+    - script:
+        name: run
+        code: |
+          touch /var/log/express.log
+          touch /var/log/webpack.log
+          npm run dev >> /var/log/webpack.log 2>&1 &
+          npm run watch >> /var/log/express.log 2>&1 &
+    - internal/shell:
+        code: |
+          stty columns $TERMINAL_COLUMNS
+          stty rows $TERMINAL_ROWS
+          log
+
+build:
+  steps:
+    - npm-install:
+        name: install node dependencies
+        options: --no-optional --silent
+        cwd: $WERCKER_ROOT/src
+    - npm-test:
+        name: run tests
+        cwd: $WERCKER_ROOT/src
+    - script:
+        name: run webpack
+        code: npm run webpack -- -p
+        cwd: $WERCKER_ROOT/src
+    - script:
+        name: export the application
+        code: |
+          cp -r src "$WERCKER_OUTPUT_DIR"
+          cp -r dokku "$WERCKER_OUTPUT_DIR"
+          mv "$WERCKER_OUTPUT_DIR/dokku/Dockerfile" "$WERCKER_OUTPUT_DIR/Dockerfile"
+    # - script:
+    #     name: generate kubernetes controller file
+    #     code: ./node-controller.yml.sh
+    # - script:
+    #     name: install gcloud
+    #     code: |
+    #       curl https://sdk.cloud.google.com | bash
+    #       source ~/.bashrc
+    # - script:
+    #     name: install jq
+    #     code: |
+    #       wget -O /usr/local/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5rc1/jq-linux-x86_64-static
+    #       chmod a+x /usr/local/bin/jq
+    # - script:
+    #     name: gcr.io authentication
+    #     code: |
+    #       gcloud auth activate-refresh-token $GCLOUD_ACCOUNT $GCLOUD_REFRESH_TOKEN
+    #       gcloud docker --authorize-only
+    #       export GCR_AUTH_TOKEN=$(cat $HOME/.dockercfg | jq --raw-output '.["https://gcr.io"].auth' | base64 --decode | cut -d ':' -f2)
+    # - internal/docker-push:
+    #     username: _token
+    #     password: $GCR_AUTH_TOKEN
+    #     repository: gcr.io/$GCR_PROJECT/$GCR_IMAGE
+    #     tag: $WERCKER_GIT_COMMIT
+    #     registry: https://gcr.io
+    #     working-dir: $WERCKER_SOURCE_DIR
+    #     cmd: node index.js
+
+deploy:
+  steps:
+    - add-to-known_hosts:
+        hostname: $DOKKU_HOST
+    - add-ssh-key:
+        keyname: DOKKU_KEY
+    - script:
+        name: Initialize new repository
+        code: |
+          rm -rf .git
+          git init
+          git config --global user.name "wercker"
+          git config --global user.email "pleasemailus@wercker.com"
+          git remote add dokku dokku@$DOKKU_HOST:$DOKKU_APP
+    - script:
+        name: Add everything to the repository
+        code: |
+          git add .
+          git commit --quiet -m "Result of deploy $WERCKER_GIT_COMMIT"
+    - script:
+        name: Push to dokku
+        code: |
+          git push -f dokku master
+
+  # initialize:
+  #   - script:
+  #       name: debug
+  #       code: cat node-controller.yml
+  #
+  #   - kubectl:
+  #       server: $GCE_SERVER
+  #       username: $GCE_USERNAME
+  #       password: $GCE_PASSWORD
+  #       insecure-skip-tls-verify: true
+  #       command: create -f mongo.yml
+  #
+  #   - kubectl:
+  #       server: $GCE_SERVER
+  #       username: $GCE_USERNAME
+  #       password: $GCE_PASSWORD
+  #       insecure-skip-tls-verify: true
+  #       command: create -f mongo-service.yml
+  #
+  #   - kubectl:
+  #       server: $GCE_SERVER
+  #       username: $GCE_USERNAME
+  #       password: $GCE_PASSWORD
+  #       insecure-skip-tls-verify: true
+  #       command: create -f node-controller.yml
+  #
+  #   - kubectl:
+  #       server: $GCE_SERVER
+  #       username: $GCE_USERNAME
+  #       password: $GCE_PASSWORD
+  #       insecure-skip-tls-verify: true
+  #       command: create -f node-service.yml
+  #
+  # rolling-update:
+  #   - kubectl:
+  #       server: $GCE_SERVER
+  #       username: $GCE_USERNAME
+  #       password: $GCE_PASSWORD
+  #       insecure-skip-tls-verify: true
+  #       command: rolling-update node
+  #       image: gcr.io/$GCR_PROJECT/$GCR_IMAGE:$WERCKER_GIT_COMMIT

@@ -1,0 +1,63 @@
+{{ range .RAW_TCP_PORTS | split " " }}
+{{ $port := . }}
+server {
+  {{ if $.SSL_INUSE }}
+  listen      [::]:{{ $port }};
+  listen      {{ $port }};
+  listen      443 default_server ssl spdy;
+  {{ if $.SSL_SERVER_NAME }}server_name {{ $.SSL_SERVER_NAME }}; {{ end }}
+  {{ if $.NOSSL_SERVER_NAME }}server_name {{ $.NOSSL_SERVER_NAME }}; {{ end }}
+  if ($scheme = http) {
+    return 301 https://$server_name$request_uri;
+  }
+  ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+  ssl_prefer_server_ciphers on;
+  ssl_ciphers 'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS';
+  ssl_session_cache shared:ssl_session_cache:10m;
+  ssl_dhparam /etc/nginx/dhparams.pem;
+  ssl_certificate     {{ $.APP_SSL_PATH }}/server.crt;
+  ssl_certificate_key {{ $.APP_SSL_PATH }}/server.key;
+  keepalive_timeout   70;
+  add_header          Strict-Transport-Security "max-age=31536000";
+  add_header          Alternate-Protocol  {{ $.NGINX_SSL_PORT }}:npn-spdy/2;
+  {{ else }}
+  listen      [::]:{{ $port }};
+  listen      {{ $port }};
+  {{ if $.NOSSL_SERVER_NAME }}server_name {{ $.NOSSL_SERVER_NAME }}; {{ end }}
+  {{ end }}
+  client_max_body_size 10m;
+  access_log  /var/log/nginx/{{ $.APP }}-access.log;
+  error_log   /var/log/nginx/{{ $.APP }}-error.log;
+
+  location    / {
+
+    gzip on;
+    gzip_min_length  1100;
+    gzip_buffers  4 32k;
+    gzip_types    text/css text/javascript text/xml text/plain text/x-component application/javascript application/x-javascript application/json application/xml  application/rss+xml font/truetype application/x-font-ttf font/opentype application/vnd.ms-fontobject image/svg+xml;
+    gzip_vary on;
+    gzip_comp_level  6;
+
+    proxy_pass  http://{{ $.APP }}-{{ $port }};
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header X-Request-Start $msec;
+  }
+  include {{ $.DOKKU_ROOT }}/{{ $.APP }}/nginx.conf.d/*.conf;
+}
+{{ if $.DOKKU_APP_LISTENERS }}
+{{ range $upstream_port := $.PROXY_UPSTREAM_PORTS | split " " }}
+upstream {{ $.APP }}-{{ $upstream_port }} {
+{{ range $listeners := $.DOKKU_APP_LISTENERS | split " " }}
+{{ $listener_list := $listeners | split ":" }}
+{{ $listener_ip := index $listener_list 0 }}
+{{ $listener_port := index $listener_list 1 }}
+  server {{ $listener_ip }}:{{ $upstream_port }};{{ end }}
+}
+{{ end }}{{ end }}
+{{ end }}

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+set -e
+wercker build --direct-mount --enable-volumes --source-dir src "$@"

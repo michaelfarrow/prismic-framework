@@ -1,0 +1,11 @@
+extends ../layouts/page
+
+block content
+  .container
+    - title = page.get('title')
+    - body = page.get('body')
+    if title
+      h1= dom.RichText.asText(page.data.title)
+    if body
+    .page-content
+      +slices(page, page.data.body)

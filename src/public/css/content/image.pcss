@@ -1,0 +1,22 @@
+
+.content-image {
+  &.content-label-image-center {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .content-image-inner {
+    @mixin responsive-container;
+  }
+  img,
+  .content-image-image {
+    @mixin responsive-inner;
+  }
+  .content-image-link,
+  .content-image-caption,
+  img {
+    display: block;
+  }
+  .content-image-image {
+    @mixin image-cover;
+  }
+}

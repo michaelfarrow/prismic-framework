@@ -1,0 +1,20 @@
+@define-mixin image-cover {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+span.b-lazy,
+span.b-lazy-nojs {
+  display: block;
+}
+
+.b-lazy {
+  opacity: 0;
+  transition-property: opacity;
+  transition-duration: 0.5s;
+
+  &.b-loaded {
+    opacity: 1;
+  }
+}

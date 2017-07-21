@@ -1,0 +1,11 @@
+extends ../../layouts/base
+
+block body
+  .error-container
+    h1 500 error
+    if title
+      h2= title
+    if message
+      pre.message= message
+    if err && _.isError(err) && process.env.NODE_ENV === 'development'
+      pre= err.stack

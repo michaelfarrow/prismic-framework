@@ -1,0 +1,10 @@
+extends ../../layouts/base
+
+block body
+  .error-container
+    h1 404 Not Found
+    pre.url= url
+    if title
+      h2= title
+    if message
+      pre.message= message

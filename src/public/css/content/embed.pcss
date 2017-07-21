@@ -1,0 +1,23 @@
+
+.content-embed {
+  &.content-embed-type-video {
+    .content-embed-inner {
+      background-color: black;
+      padding-top: 56.25%;
+      @mixin responsive-container;
+      > * {
+        display: block;
+        @mixin responsive-inner;
+      }
+    }
+    .content-embed-thumbnail {
+      @mixin image-cover;
+      display: none;
+    }
+  }
+  &.content-embed-provider-twitter {
+    .twitter-tweet {
+      margin: 0;
+    }
+  }
+}

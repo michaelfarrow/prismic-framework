@@ -1,0 +1,18 @@
+
+@define-mixin breakpoint $width {
+  @media (width >= $width) {
+    @mixin-content;
+  }
+}
+
+@define-mixin breakpoint-md {
+  @mixin breakpoint $breakpoint-md {
+    @mixin-content;
+  }
+}
+
+@define-mixin breakpoint-lg {
+  @mixin breakpoint $breakpoint-lg {
+    @mixin-content;
+  }
+}
